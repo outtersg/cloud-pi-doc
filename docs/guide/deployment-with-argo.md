@@ -10,6 +10,56 @@ Lors de la configuration du **dépôt d'infrastructure**, depuis la console, il 
 
 > Attention, sur les versions précédentes de la console CPiN, ces modifications s'effectuaient depuis ArgoCD dans le menu details de l'application. Il est maintenant *obligatoire* de faire ces modifications depuis la console. En effet, toute modification depuis l'interface ArgoCD sur ces éléments ne sera pas prise en compte.
 
+## Nouveau système de déploiement depuis la version 9.19.0 (beta)
+
+À partir de la version 9.19.0, un nouveau système de déploiement est disponible en version beta.
+
+Il permet de créer des déploiements depuis la console afin d'associer un environnement à un ou plusieurs dépôts.
+
+Chaque dépôt du déploiement peut avoir sa propre configuration :
+
+- **Nom de la révision à déployer** : branche, tag ou commit à utiliser. Si le champ est vide, la cible sera `HEAD`.
+- **Chemin du répertoire à déployer** : chemin vers les manifests, kustomize ou chart Helm. Si le champ est vide, la racine du dépôt sera utilisée.
+- **Fichiers values (Helm)** : un fichier par ligne, chemin relatif par rapport au répertoire à déployer.
+
+Ce nouveau système permet notamment :
+
+- de déployer plusieurs dépôts sur un même environnement
+- d'utiliser une révision différente selon l'environnement
+- d'utiliser une révision différente selon le dépôt
+
+> Cette fonctionnalité est encore en version beta. Il est recommandé de vérifier le résultat dans ArgoCD après modification d'un déploiement.
+
+## Activer les droits de déploiement
+
+Pour utiliser ce nouveau système, les permissions doivent être ajoutées dans la gestion des rôles du projet.
+
+Depuis l'onglet **Rôles**, modifier le rôle concerné puis activer les droits :
+
+- **Voir les déploiements** : permet de visualiser les déploiements et leurs configurations.
+- **Gérer les déploiements** : permet de créer, éditer et supprimer des déploiements.
+
+![Droits des déploiements](/img/guide/deployment/roles-deploiements.png)
+
+## Créer un déploiement
+
+Depuis l'onglet **Ressources**, une nouvelle partie **Déploiements** permet de créer et consulter les déploiements du projet.
+
+![Liste des déploiements](/img/guide/deployment/liste-deploiements.png)
+
+Cliquer sur **+ Ajouter un nouveau déploiement** puis compléter :
+
+- le nom du déploiement
+- l'environnement cible
+- le ou les dépôts à inclure
+- la révision, le chemin et les fichiers values de chaque dépôt
+
+![Création d'un déploiement](/img/guide/deployment/creation-deploiement.png)
+
+> Un déploiement est toujours lié à un seul environnement.
+
+> Si aucun déploiement n'est configuré, la console conserve le fonctionnement basé sur les dépôts d'infrastructure déclarés dans le projet.
+
 ## Visualisation dans ArgoCD
 
 Le déploiement se fait automatiquement par ArgoCD. Une fois qu'un dépôt d'infrastructure est synchronisé, il convient de se rendre sur le service ArgoCD depuis la liste des services.
@@ -32,7 +82,7 @@ Depuis la version 9.11.5 de la console CPiN, un changement majeur est apporté s
 
 Plusieurs applications ArgoCD sont créées en plus des applications ArgoCD associées aux repos d'infra:
 
- - [prod|hprod]-[nom-prj-console]-observability : Cette application correspond au déploiement de l'instance Grafana et des dashboard as code (voir le tuto sur l'observabilité). 2 applications de ce type peuvent exister : une pour la production (si au moins un environnement de type production existe) et une pour le hors production. 
+ - [prod|hprod]-[nom-prj-console]-observability : Cette application correspond au déploiement de l'instance Grafana et des dashboard as code (voir le tuto sur l'observabilité). 2 applications de ce type peuvent exister : une pour la production (si au moins un environnement de type production existe) et une pour le hors production.
  - [nom-prj-console]-[nom-cluster]-[env]-root : App of apps permettant de piloter l'ensemble des applis de son projet. Une application de ce type est créé par environnement de son projet CPiN. (aucune modification n'est à faire sur cette application)
  - [nom-prj-console]-[env]-[id]-env : Cette application ArgoCD correspond aux éléments d'infrastructure déployés au sein de son namespace : registry pull secret pour la récupération des images sur Harbor par exemple. Une application de ce type est créé par environnement de son projet CPiN. (aucune modification n'est à faire sur cette application)
  - [nom-prj-console]-[env]-[id]-[nom-repo-infra]-[id] : Application ArgoCD associé au repo de code d'infra déclaré dans la console, c'est l'application correspondant à un déploiement. Les modifications sur cette application doivent désormais se faire en mode gitops depuis les fichiers values et la configuration depuis la console CPiN.
@@ -45,7 +95,7 @@ Plusieurs applications ArgoCD sont créées en plus des applications ArgoCD asso
   - id : correspond à un identifiant technique sur 4 caractères.
 
 Ainsi pour le projet `stform`, avec un environnement `demo` de type hors prod (par exemple type dev), un repo d'infra nommé `infra` dans la console et déployé sur l'environnement de formation dont le cluster se nomme `formation-app` les projets suivants seront présents dans ArgoCD :
- - hprod-stform-observability : Car seul un environnement de type hors prod est déployé  
+ - hprod-stform-observability : Car seul un environnement de type hors prod est déployé
  - stform-demo-3c58-env : correspond au déploiement du ns des quotas et du registry pull secret
  - stform-formation-app-demo-root : Meta application qui controle les autres.
  - stform-demo-3c58-infra-3843 : Application correspondant au repo de code
@@ -64,16 +114,16 @@ Si un `drift` est identifé :
  - L'environnement dans la console CPiN n'est pas positonné en `Synchronisation automatique` et l'application historique est maintenue. Il est toujours possible de la modifier depuis ArgoCD.
 
  > :exclamation: Il est nécessaire de corriger tous les `drifts` avant de passer l'environnement en `Synchronisation automatique` afin de ne pas impacter vos applications.
- 
+
   Afin de corriger les `drifts` plusieurs cas sont possibles :
-   - *cas 1* : Présence de paramètres dans l'argoCD (surcharges de valeur depuis l'IHM) sur les champs parameters (surcharge d'un paramètre) et values (ajout de values dans la définition YAML de l'application ArgoCD). 
+   - *cas 1* : Présence de paramètres dans l'argoCD (surcharges de valeur depuis l'IHM) sur les champs parameters (surcharge d'un paramètre) et values (ajout de values dans la définition YAML de l'application ArgoCD).
    > :white_check_mark: Ce cas se corrige en renseignant les valeurs des paramètres dans les fichiers de values et indiquer le nom des fichiers values à utiliser depuis les repos d'infra dans la console.
    - *cas 2* : le nom des fichiers values utilisés par l'environnement ne correspondent pas au **nom de l'environnement CPiN**.
    > :white_check_mark:  Ce cas se corrige en renommant les fichiers values en utilisant le système de templating, par exemple `values-<env>.yaml` ou `/values/<env>/values.yaml`
-   - *cas 3* :  Utilisation d'une target revision différente par environnement : pour l'instant cette feature n'est pas supportée, un développement est en cours dans la console pour supporter cette option et sera présente dans une prochaine version.
-   > :warning: Dans ce cas, il faut continuer à utiliser l'application historique et surtout ne pas cocher la `Synchronisation automatique` de l'environnement depuis la console CPiN
-   - *cas 4* : utilisation du multi-sources : pour l'instant cette feature n'est pas supportée, un développement est en cours dans la console pour supporter cette option et sera présente dans une prochaine version.
-   > :warning: Dans ce cas, il faut continuer à utiliser l'application historique et surtout ne pas cocher la `Synchronisation automatique` de l'environnement depuis la console CPiN 
+   - *cas 3* : Utilisation d'une target revision différente par environnement.
+   > :white_check_mark: Depuis la version 9.19.0, ce cas peut être géré avec le nouveau système de déploiement en version beta.
+   - *cas 4* : utilisation du multi-sources ou de plusieurs dépôts pour un même déploiement.
+   > :white_check_mark: Depuis la version 9.19.0, ce cas peut être géré avec le nouveau système de déploiement en version beta.
 
 Remarques générales :
 
@@ -81,4 +131,4 @@ Remarques générales :
 
 > En cas de drift, il est **toujours** possible d'utiliser l'application historique, le temps de corriger les drifts.
 
-> :warning: Tant qu'un `drift` est présent, il ne faut **surtout pas** activer la `Synchronisation automatique` depuis les environnements dans la console CPiN au risque de générer des conflits et instabilités entre l'application historique et la nouvelle application. Le passage en `Synchronisation automatique` se fait par le script de migration présenté ci-dessus après suppression des `drifts` par le projet :warning: 
+> :warning: Tant qu'un `drift` est présent, il ne faut **surtout pas** activer la `Synchronisation automatique` depuis les environnements dans la console CPiN au risque de générer des conflits et instabilités entre l'application historique et la nouvelle application. Le passage en `Synchronisation automatique` se fait par le script de migration présenté ci-dessus après suppression des `drifts` par le projet :warning:
